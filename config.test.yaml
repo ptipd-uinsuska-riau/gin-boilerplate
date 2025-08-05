@@ -1,0 +1,55 @@
+env: "test"
+port: 8081
+logLevel: "ERROR"
+logMode: false
+logFormat: "text"
+
+# Database configuration (use in-memory or test database)
+postgres:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "password"
+  dbname: "gin_boilerplate_test"
+  sslmode: "disable"
+  timezone: "UTC"
+
+# Redis configuration (disabled for tests)
+redis:
+  enableRedis: false
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 1
+
+# Rate limiting (higher for tests)
+rate: 1000
+interval: "1s"
+
+# JWT configuration
+secretKey: "test-secret-key"
+accessTokenExpiry: 1
+accessTokenExpiryUnit: "hour"
+
+# HTTP timeout
+httpTimeout: "10s"
+
+# Security configuration (Test - Relaxed for testing)
+security:
+  # Input Sanitization
+  enableSanitization: false # Disabled for easier testing
+  enableXSSDetection: false
+  enableSQLInjectionDetection: false
+  maxStringLength: 2000 # More lenient for test data
+  strictMode: false
+
+  # Request Size Limiting (Relaxed for testing)
+  maxBodySize: 20971520 # 20MB
+  maxFormFields: 200
+  maxFormMemory: 67108864 # 64MB
+  maxFormFiles: 20
+  maxHeaderSize: 2097152 # 2MB
+  maxURLLength: 4096
+  maxQueryParams: 100
+  maxFileSize: 104857600 # 100MB
+  maxResponseSize: 209715200 # 200MB
