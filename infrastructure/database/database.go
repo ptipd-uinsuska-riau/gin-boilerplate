@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"gin-boilerplate/infrastructure/config"
@@ -11,6 +12,45 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// levelJejakSQL menentukan seberapa banyak GORM mencatat kueri.
+//
+// Hanya DEBUG yang mendapat logger.Info, karena level itu mencatat SETIAP kueri
+// LENGKAP DENGAN NILAI YANG DIIKAT — isi tabelnya, bukan sekadar bentuk
+// kuerinya. Pada turunan boilerplate ini nilai tersebut adalah data pribadi:
+// NIP, nama pegawai, nama berkas, alamat IP. Dua akibatnya sama-sama tidak
+// diinginkan: aliran log dibanjiri kueri yang BERHASIL sampai kegagalan
+// sungguhan tenggelam, dan data pribadi tersalin ke tempat dengan retensi serta
+// hak akses yang berbeda dari basis data asalnya.
+//
+// Silent bukan jawabannya untuk selain DEBUG: ia ikut membungkam kueri lambat
+// dan error basis data, justru dua hal yang paling dibutuhkan di produksi.
+// Silent hanya dipakai bila operator memang mematikan logMode.
+func levelJejakSQL(logMode bool, logLevel string) logger.LogLevel {
+	switch {
+	case !logMode:
+		return logger.Silent
+	case strings.EqualFold(strings.TrimSpace(logLevel), "DEBUG"):
+		return logger.Info
+	default:
+		return logger.Warn
+	}
+}
+
+// namaLevelJejakSQL menerjemahkan level GORM ke nama yang terbaca di log,
+// beserta apa yang sebenarnya ikut tercatat pada level itu.
+func namaLevelJejakSQL(level logger.LogLevel) string {
+	switch level {
+	case logger.Silent:
+		return "silent (tidak ada)"
+	case logger.Info:
+		return "info (SEMUA kueri beserta nilainya)"
+	case logger.Warn:
+		return "warn (kueri lambat + error)"
+	default:
+		return "error (error saja)"
+	}
+}
 
 type DatabaseClient struct {
 	DbConn *gorm.DB
@@ -27,13 +67,18 @@ func NewDatabaseClient(config *config.Config) (*DatabaseClient, error) {
 		config.Postgres.TimeZone,
 	)
 
-	// Configure GORM logger
-	var gormLogger logger.Interface
-	if config.LogMode {
-		gormLogger = logger.Default.LogMode(logger.Info)
-	} else {
-		gormLogger = logger.Default.LogMode(logger.Silent)
-	}
+	level := levelJejakSQL(config.LogMode, config.LogLevel)
+	gormLogger := logger.Default.LogMode(level)
+
+	// Dilaporkan saat boot supaya pertanyaan "kenapa log penuh kueri?" terjawab
+	// dari log itu sendiri, bukan dari menebak isi config produksi yang tidak
+	// dapat dibaca dari luar. Menyebut juga NILAI ASAL, karena penyebab tersering
+	// adalah logLevel yang tidak disetel sama sekali sehingga jatuh ke bawaan.
+	log.WithFields(log.Fields{
+		"log_mode":  config.LogMode,
+		"log_level": config.LogLevel,
+		"jejak_sql": namaLevelJejakSQL(level),
+	}).Info("Jejak SQL GORM disetel")
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: gormLogger,

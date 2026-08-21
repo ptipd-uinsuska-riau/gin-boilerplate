@@ -27,7 +27,11 @@ var (
 	}
 	configDefaults = map[string]interface{}{
 		"port":                  8080,
-		"logLevel":              "DEBUG",
+		// INFO, bukan DEBUG. Bawaan berlaku justru pada pemasangan yang confignya
+		// paling ringkas — biasanya produksi — sedangkan pengembangan lokal
+		// menyetelnya eksplisit. DEBUG di sini membuat jejak SQL GORM mencatat
+		// setiap kueri lengkap dengan nilai yang diikat. Lihat database.levelJejakSQL.
+		"logLevel":              "INFO",
 		"logFormat":             "text",
 		"secretKey":             "supersecret",
 		"accessTokenExpiry":     24,
