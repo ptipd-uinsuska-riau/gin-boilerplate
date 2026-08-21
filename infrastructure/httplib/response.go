@@ -5,7 +5,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-
 // catatKegagalanServer mencatat kegagalan 5xx yang TIDAK melewati ErrorHandler.
 //
 // Ada dua jalur menjawab error di boilerplate ini: AbortWithError (menaruh error
