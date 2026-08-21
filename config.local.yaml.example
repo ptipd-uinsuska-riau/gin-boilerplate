@@ -1,6 +1,20 @@
 env: "local"
 port: 8080
-logLevel: "DEBUG"
+# logLevel juga menentukan seberapa banyak GORM mencatat kueri:
+#
+#   DEBUG        -> SETIAP kueri, LENGKAP DENGAN NILAI YANG DIIKAT. Nilai itu
+#                   adalah isi tabel: NIP, nama pegawai, nama berkas, alamat IP.
+#                   Berguna saat menelusuri di mesin sendiri; JANGAN dipakai di
+#                   server bersama.
+#   selain DEBUG -> hanya kueri lambat (>200 ms) dan error basis data.
+#
+# Berkas ini kerap menjadi satu-satunya titik awal saat orang menyusun config
+# baru — termasuk untuk server — jadi bawaannya dibuat yang aman. Nyalakan DEBUG
+# secara sadar saat memang dibutuhkan.
+logLevel: "INFO"
+
+# logMode false membungkam GORM SEPENUHNYA, termasuk error basis data dan kueri
+# lambat. Biarkan true; kedalamannya diatur lewat logLevel di atas.
 logMode: true
 logFormat: "text"
 
