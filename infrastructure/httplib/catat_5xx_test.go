@@ -56,3 +56,25 @@ func TestCatatKegagalanServer_4xxTidakDicatat(t *testing.T) {
 type errContoh struct{}
 
 func (errContoh) Error() string { return "contoh" }
+
+// Uji di atas memanggil catatKegagalanServer LANGSUNG, sehingga tidak menjaga
+// apakah SetErrorResponse benar-benar memanggilnya. Dibuktikan lewat kontrol
+// negatif: sambungan itu diputus, dan seluruh uji di atas tetap lolos.
+//
+// Dua uji berikut memakai pintu masuk yang sesungguhnya, jadi memutus
+// sambungannya membuat keduanya gagal.
+func TestSetErrorResponse_TersambungKeCatatan(t *testing.T) {
+	c, kait := konteks(t)
+	SetErrorResponse(c, 0, 500, "gagal menghubungi basis data")
+	if n := len(kait.AllEntries()); n != 1 {
+		t.Fatalf("%d baris log, mau 1 — SetErrorResponse harus mencatat 5xx", n)
+	}
+}
+
+func TestSetErrorResponseWithError_TersambungKeCatatan(t *testing.T) {
+	c, kait := konteks(t)
+	SetErrorResponseWithError(c, 0, 503, "layanan tidak tersedia", errContoh{})
+	if n := len(kait.AllEntries()); n != 1 {
+		t.Fatalf("%d baris log, mau 1 — SetErrorResponseWithError harus mencatat 5xx", n)
+	}
+}
