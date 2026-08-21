@@ -2,8 +2,11 @@ package database
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
+
+	stdlog "log"
 
 	"gin-boilerplate/infrastructure/config"
 
@@ -12,6 +15,35 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// jejakSQL menyusun logger GORM.
+//
+// Dibangun sendiri alih-alih memakai logger.Default karena dua bawaannya keliru
+// untuk layanan yang lognya dikirim ke agregator, bukan dibaca di terminal:
+//
+//  1. IgnoreRecordNotFoundError bawaannya false, sehingga ErrRecordNotFound
+//     dicatat sebagai ERROR lengkap dengan SQL dan nilai yang diikat. Padahal
+//     pada banyak kueri "tidak ketemu" adalah hasil NORMAL yang sudah ditangani
+//     pemanggilnya. Terlihat di produksi 21 Agu 2026: pemeriksaan berkas kembar
+//     memakai First() dan menangani ErrRecordNotFound sebagai "tidak ada
+//     kembaran", tetapi SETIAP unggahan yang bukan duplikat tetap menulis baris
+//     error berisi id_sdm dan sidik berkasnya.
+//  2. Prefiks bawaannya carriage-return + newline, yang di agregator
+//     menjadi satu BARIS KOSONG tersendiri sebelum tiap jejak.
+//     Dipakai prefiks kosong di sini.
+//  3. Colorful bawaannya true, sehingga tiap baris membawa escape ANSI
+//     ([31;1m dan kawan-kawan). Berguna di terminal, sampah di Loki.
+func jejakSQL(logMode bool, logLevel string) logger.Interface {
+	return logger.New(
+		stdlog.New(os.Stdout, "", stdlog.LstdFlags),
+		logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  levelJejakSQL(logMode, logLevel),
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+}
 
 // levelJejakSQL menentukan seberapa banyak GORM mencatat kueri.
 //
@@ -68,7 +100,7 @@ func NewDatabaseClient(config *config.Config) (*DatabaseClient, error) {
 	)
 
 	level := levelJejakSQL(config.LogMode, config.LogLevel)
-	gormLogger := logger.Default.LogMode(level)
+	gormLogger := jejakSQL(config.LogMode, config.LogLevel)
 
 	// Dilaporkan saat boot supaya pertanyaan "kenapa log penuh kueri?" terjawab
 	// dari log itu sendiri, bukan dari menebak isi config produksi yang tidak
