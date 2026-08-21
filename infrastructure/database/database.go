@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -34,8 +35,16 @@ import (
 //  3. Colorful bawaannya true, sehingga tiap baris membawa escape ANSI
 //     ([31;1m dan kawan-kawan). Berguna di terminal, sampah di Loki.
 func jejakSQL(logMode bool, logLevel string) logger.Interface {
+	return jejakSQLKe(os.Stdout, logMode, logLevel)
+}
+
+// jejakSQLKe memisahkan TUJUAN TULIS supaya perilaku logger dapat diperiksa
+// tanpa basis data. Yang bernilai dijaga bukan NewDatabaseClient — ia ditutup
+// Ping dan memang menuntut koneksi — melainkan bahwa objek logger yang DITERIMA
+// GORM berperilaku benar. Itu dibuktikan dengan memanggil Trace() padanya.
+func jejakSQLKe(tujuan io.Writer, logMode bool, logLevel string) logger.Interface {
 	return logger.New(
-		stdlog.New(os.Stdout, "", stdlog.LstdFlags),
+		stdlog.New(tujuan, "", stdlog.LstdFlags),
 		logger.Config{
 			SlowThreshold:             200 * time.Millisecond,
 			LogLevel:                  levelJejakSQL(logMode, logLevel),
@@ -84,6 +93,14 @@ func namaLevelJejakSQL(level logger.LogLevel) string {
 	}
 }
 
+// konfigurasiGorm memisahkan konstruksi *gorm.Config supaya uji dapat mengambil
+// logger DARI SINI, bukan membangunnya ulang. Membangun ulang berarti kembali
+// menguji potongan implementasi: menghapus logger dari sini tidak akan
+// tertangkap.
+func konfigurasiGorm(jejak logger.Interface) *gorm.Config {
+	return &gorm.Config{Logger: jejak}
+}
+
 type DatabaseClient struct {
 	DbConn *gorm.DB
 }
@@ -112,9 +129,7 @@ func NewDatabaseClient(config *config.Config) (*DatabaseClient, error) {
 		"jejak_sql": namaLevelJejakSQL(level),
 	}).Info("Jejak SQL GORM disetel")
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: gormLogger,
-	})
+	db, err := gorm.Open(postgres.Open(dsn), konfigurasiGorm(gormLogger))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
